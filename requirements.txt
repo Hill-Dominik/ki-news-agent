@@ -1,0 +1,5 @@
+feedparser
+supabase
+anthropic
+python-dotenv
+PyYAML

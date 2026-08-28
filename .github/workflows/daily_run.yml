@@ -1,0 +1,31 @@
+name: Taeglicher KI-News-Lauf
+
+on:
+  schedule:
+    # 04:00 UTC ~ 05:00 Uhr CET (Winterzeit). Waehrend der Sommerzeit (CEST)
+    # laeuft er dadurch effektiv um 06:00 Uhr lokal - bewusste Vereinfachung,
+    # um nicht zwei saisonale Cron-Eintraege pflegen zu muessen.
+    - cron: "0 4 * * *"
+  workflow_dispatch: # erlaubt manuelles Auslösen zum Testen (Actions-Tab -> Run workflow)
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhaengigkeiten installieren
+        run: pip install -r requirements.txt
+
+      - name: Agent ausfuehren
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python src/main.py

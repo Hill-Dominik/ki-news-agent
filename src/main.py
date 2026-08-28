@@ -43,24 +43,38 @@ def main():
     kandidaten += hole_web_suche_kandidaten(config.get("suchanfragen", []))
     print(f"{len(kandidaten)} Kandidaten gefunden.")
 
-    # Dedup Stufe 1: URL-Exact-Match
+    # Dedup innerhalb des aktuellen Laufs: RSS und Websuche koennen zufaellig
+    # denselben Artikel liefern - ohne diesen Schritt wuerde der zweite Fund
+    # beim Speichern gegen die Unique-Constraint auf artikel_url knallen.
+    gesehene_urls = set()
+    eindeutige_kandidaten = []
+    for k in kandidaten:
+        if k["artikel_url"] and k["artikel_url"] not in gesehene_urls:
+            gesehene_urls.add(k["artikel_url"])
+            eindeutige_kandidaten.append(k)
+    kandidaten = eindeutige_kandidaten
+    print(f"{len(kandidaten)} nach Dedup innerhalb des Laufs.")
+
+    # Dedup Stufe 1: URL-Exact-Match gegen die Datenbank
     neue_kandidaten = [
         k for k in kandidaten
         if k["artikel_url"] and not artikel_existiert(client, k["artikel_url"])
     ]
-    print(f"{len(neue_kandidaten)} nach URL-Dedup uebrig.")
+    print(f"{len(neue_kandidaten)} nach URL-Dedup gegen DB uebrig.")
 
     letzte_titel = get_letzte_titel(client, tage=3)
     gespeichert = 0
 
-    for kandidat in neue_kandidaten:
+    for i, kandidat in enumerate(neue_kandidaten, start=1):
+        print(f"Bewerte {i}/{len(neue_kandidaten)}: {kandidat['titel'][:70]}")
         try:
             bewertung = bewerte_artikel(kandidat, letzte_titel)
         except Exception as e:
-            print(f"Fehler bei Bewertung von '{kandidat['titel']}': {e}")
+            print(f"  Fehler bei Bewertung: {e}")
             continue
 
         if bewertung.get("ist_duplikat"):
+            print("  -> Duplikat (inhaltlich), uebersprungen")
             continue
 
         if kandidat["quelle_name"] and kandidat["quelle_url"]:
@@ -71,17 +85,22 @@ def main():
         quelle_id = get_or_create_quelle(client, quelle_name, quelle_url)
         kategorie_id = get_or_create_kategorie(client, bewertung["kategorie"])
 
-        speichere_eintrag(client, {
-            "datum": date.today().isoformat(),
-            "titel": kandidat["titel"],
-            "kernaussage": bewertung["kernaussage"],
-            "artikel_url": kandidat["artikel_url"],
-            "quelle_id": quelle_id,
-            "kategorie_id": kategorie_id,
-            "relevanz": bewertung["relevanz"],
-            "zusatzdaten": {"begruendung_relevanz": bewertung["begruendung_relevanz"]},
-        })
-        gespeichert += 1
+        try:
+            speichere_eintrag(client, {
+                "datum": date.today().isoformat(),
+                "titel": kandidat["titel"],
+                "kernaussage": bewertung["kernaussage"],
+                "artikel_url": kandidat["artikel_url"],
+                "quelle_id": quelle_id,
+                "kategorie_id": kategorie_id,
+                "relevanz": bewertung["relevanz"],
+                "zusatzdaten": {"begruendung_relevanz": bewertung["begruendung_relevanz"]},
+            })
+            gespeichert += 1
+        except Exception as e:
+            print(f"  Fehler beim Speichern: {e}")
+            continue
+
         letzte_titel.append(kandidat["titel"])  # fuer Dedup innerhalb desselben Laufs
 
     print(f"{gespeichert} neue Eintraege gespeichert.")

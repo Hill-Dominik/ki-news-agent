@@ -1,0 +1,31 @@
+name: Woechentlicher Rueckblick
+
+on:
+  schedule:
+    # Montags 04:30 UTC ~ 06:30 Uhr CEST (Sommerzeit), 05:30 CET (Winterzeit).
+    # Gleiche bewusste Vereinfachung wie beim taeglichen Workflow: keine
+    # zwei saisonalen Cron-Eintraege.
+    - cron: "30 4 * * 1"
+  workflow_dispatch: # erlaubt manuelles Ausloesen zum Testen
+
+jobs:
+  generate-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhaengigkeiten installieren
+        run: pip install -r requirements.txt
+
+      - name: Wochenrueckblick generieren
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python src/weekly_summary.py

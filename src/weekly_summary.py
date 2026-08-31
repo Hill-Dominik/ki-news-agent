@@ -79,7 +79,7 @@ def generiere_rueckblick(rohdaten: str) -> dict:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     response = client.messages.create(
         model=MODELL,
-        max_tokens=2000,
+        max_tokens=8192,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": rohdaten}],
     )

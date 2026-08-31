@@ -31,6 +31,29 @@ def lade_daten() -> pd.DataFrame:
 st.title("🤖 KI-News-Agent Dashboard")
 st.caption("Automatisch gesammelte und bewertete KI-News – täglich aktualisiert")
 
+
+@st.cache_data(ttl=300)
+def lade_wochenrueckblick():
+    client = get_client()
+    result = (
+        client.table("wochenrueckblicke")
+        .select("datum_von, datum_bis, text")
+        .order("erstellt_am", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return result.data[0] if result.data else None
+
+
+rueckblick = lade_wochenrueckblick()
+if rueckblick:
+    von = pd.to_datetime(rueckblick["datum_von"]).strftime("%d.%m.%Y")
+    bis = pd.to_datetime(rueckblick["datum_bis"]).strftime("%d.%m.%Y")
+    with st.container(border=True):
+        st.subheader(f"📋 Wochenrückblick ({von} – {bis})")
+        st.markdown(rueckblick["text"])
+    st.divider()
+
 df = lade_daten()
 
 if df.empty:

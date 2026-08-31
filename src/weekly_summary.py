@@ -83,7 +83,10 @@ def generiere_rueckblick(rohdaten: str) -> dict:
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": rohdaten}],
     )
-    return parse_json_antwort(response.content[0].text)
+    # Nur Text-Bloecke rausfiltern - Sonnet kann zusaetzlich ThinkingBlocks
+    # zurueckgeben, die keinen .text haben.
+    text_bloecke = [b.text for b in response.content if b.type == "text"]
+    return parse_json_antwort("\n".join(text_bloecke))
 
 
 def main():

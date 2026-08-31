@@ -58,4 +58,7 @@ def bewerte_artikel(kandidat: dict, letzte_titel: list[str]) -> dict:
         messages=[{"role": "user", "content": user_content}],
     )
 
-    return parse_json_antwort(response.content[0].text)
+    # Nur Text-Bloecke rausfiltern - Claude kann zusaetzlich ThinkingBlocks
+    # zurueckgeben, die keinen .text haben (siehe Bug in weekly_summary.py).
+    text_bloecke = [b.text for b in response.content if b.type == "text"]
+    return parse_json_antwort("\n".join(text_bloecke))

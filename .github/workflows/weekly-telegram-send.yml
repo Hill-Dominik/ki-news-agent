@@ -1,0 +1,33 @@
+name: Woechentlicher Telegram-Versand
+
+on:
+  schedule:
+    # Dienstags 07:30 UTC ~ 09:30 Uhr CEST (Sommerzeit), 08:30 CET (Winterzeit).
+    # Bewusst ein Tag nach der Generierung (Montag) und ein eigener,
+    # unabhaengiger Workflow - siehe Timing-Entscheidung aus 01 Planung
+    # (forschungsgestuetztes Zeitfenster fuer hoehere Aufmerksamkeit).
+    - cron: "30 7 * * 2"
+  workflow_dispatch: # erlaubt manuelles Ausloesen zum Testen
+
+jobs:
+  send-telegram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhaengigkeiten installieren
+        run: pip install -r requirements.txt
+
+      - name: Telegram-Nachricht verschicken
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python src/send_telegram.py

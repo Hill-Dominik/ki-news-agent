@@ -18,18 +18,29 @@ load_dotenv()
 import anthropic
 
 from db import get_client
+from utils import parse_json_antwort
 
 MODELL = "claude-sonnet-5"
 
 SYSTEM_PROMPT = """Du schreibst einen woechentlichen KI-News-Rueckblick auf Deutsch. \
 Du bekommst eine Liste von News-Eintraegen der letzten 7 Tage, gruppiert nach Kategorie.
 
-Struktur:
+Antworte AUSSCHLIESSLICH mit einem JSON-Objekt (kein Markdown-Codefence \
+drumherum), mit genau zwei Feldern:
+
+{
+  "text": "Der volle Rueckblick als Markdown, siehe Struktur unten",
+  "teaser": "Kurze 3-4-Saetze-Fassung als reiner Fliesstext (kein Markdown), fuer Telegram"
+}
+
+Struktur von "text":
 - Eine kurze Einleitung (1-2 Saetze), was die Woche insgesamt gepraegt hat
 - Pro Kategorie eine Ueberschrift (##) mit Bullet-Points zu den wichtigsten
   Eintraegen dieser Kategorie (kurz, praegnant, kein reines Abschreiben der
   Kernaussagen)
-- Reines Markdown, keine Code-Fences drumherum, keine Meta-Kommentare
+
+"teaser": Fasst die 1-2 wichtigsten Ereignisse der Woche zusammen, ohne
+Markdown-Formatierung, damit es direkt als Chat-Nachricht lesbar ist.
 
 Schreibstil: sachlich, kompakt, fuer ein Fachpublikum (IT/KI-affin)."""
 
@@ -64,7 +75,7 @@ def formatiere_fuer_prompt(gruppen: dict[str, list[dict]]) -> str:
     return "\n".join(zeilen)
 
 
-def generiere_rueckblick(rohdaten: str) -> str:
+def generiere_rueckblick(rohdaten: str) -> dict:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     response = client.messages.create(
         model=MODELL,
@@ -72,7 +83,7 @@ def generiere_rueckblick(rohdaten: str) -> str:
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": rohdaten}],
     )
-    return response.content[0].text.strip()
+    return parse_json_antwort(response.content[0].text)
 
 
 def main():
@@ -87,7 +98,7 @@ def main():
 
     gruppen = gruppiere_nach_kategorie(eintraege)
     rohdaten = formatiere_fuer_prompt(gruppen)
-    text = generiere_rueckblick(rohdaten)
+    ergebnis = generiere_rueckblick(rohdaten)
 
     heute = date.today()
     datum_von = heute - timedelta(days=7)
@@ -95,7 +106,8 @@ def main():
     client.table("wochenrueckblicke").insert({
         "datum_von": datum_von.isoformat(),
         "datum_bis": heute.isoformat(),
-        "text": text,
+        "text": ergebnis["text"],
+        "teaser": ergebnis["teaser"],
     }).execute()
 
     print("Wochenrueckblick gespeichert.")

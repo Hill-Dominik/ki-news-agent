@@ -3,3 +3,4 @@ supabase
 anthropic
 python-dotenv
 PyYAML
+requests

@@ -2,7 +2,34 @@ import streamlit as st
 from supabase import create_client
 import pandas as pd
 
-st.set_page_config(page_title="KI-News-Agent Dashboard", page_icon="🤖", layout="wide")
+st.set_page_config(
+    page_title="KI-News-Agent Dashboard",
+    page_icon="dashboard/assets/favicon_32.png",
+    layout="wide",
+)
+
+st.logo("dashboard/assets/logo_transparent_128.png")
+
+CUSTOM_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+[data-testid="stMetricValue"] {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+[data-testid="stDataFrame"] * {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+footer {visibility: hidden;}
+</style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -28,7 +55,7 @@ def lade_daten() -> pd.DataFrame:
     return df
 
 
-st.title("🤖 KI-News-Agent Dashboard")
+st.title("KI-News-Agent Dashboard")
 st.caption("Automatisch gesammelte und bewertete KI-News – täglich aktualisiert")
 
 
@@ -50,7 +77,7 @@ if rueckblick:
     von = pd.to_datetime(rueckblick["datum_von"]).strftime("%d.%m.%Y")
     bis = pd.to_datetime(rueckblick["datum_bis"]).strftime("%d.%m.%Y")
     with st.container(border=True):
-        st.subheader(f"📋 Wochenrückblick ({von} – {bis})")
+        st.subheader(f"Wochenrückblick ({von} – {bis})")
         st.markdown(rueckblick["text"])
     st.divider()
 

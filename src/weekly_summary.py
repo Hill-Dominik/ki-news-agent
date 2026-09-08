@@ -18,7 +18,7 @@ load_dotenv()
 import anthropic
 
 from db import get_client
-from utils import parse_json_antwort
+from utils import parse_json_antwort, hole_eintraege, gruppiere_nach_kategorie, formatiere_fuer_prompt
 
 MODELL = "claude-sonnet-5"
 
@@ -45,36 +45,6 @@ Markdown-Formatierung, damit es direkt als Chat-Nachricht lesbar ist.
 Schreibstil: sachlich, kompakt, fuer ein Fachpublikum (IT/KI-affin)."""
 
 
-def hole_eintraege_der_woche(client, tage: int = 7) -> list[dict]:
-    grenze = (date.today() - timedelta(days=tage)).isoformat()
-    result = (
-        client.table("news_eintraege")
-        .select("titel, kernaussage, relevanz, datum, kategorien(name)")
-        .gte("datum", grenze)
-        .in_("relevanz", ["Hoch", "Mittel"])
-        .order("datum", desc=True)
-        .execute()
-    )
-    return result.data
-
-
-def gruppiere_nach_kategorie(eintraege: list[dict]) -> dict[str, list[dict]]:
-    gruppen: dict[str, list[dict]] = {}
-    for e in eintraege:
-        kategorie = e["kategorien"]["name"] if e.get("kategorien") else "Sonstiges"
-        gruppen.setdefault(kategorie, []).append(e)
-    return gruppen
-
-
-def formatiere_fuer_prompt(gruppen: dict[str, list[dict]]) -> str:
-    zeilen = []
-    for kategorie, eintraege in gruppen.items():
-        zeilen.append(f"\n## {kategorie}")
-        for e in eintraege:
-            zeilen.append(f"- [{e['relevanz']}] {e['titel']}: {e['kernaussage']}")
-    return "\n".join(zeilen)
-
-
 def generiere_rueckblick(rohdaten: str) -> dict:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     response = client.messages.create(
@@ -92,7 +62,7 @@ def generiere_rueckblick(rohdaten: str) -> dict:
 def main():
     client = get_client()
 
-    eintraege = hole_eintraege_der_woche(client)
+    eintraege = hole_eintraege(client, tage=7, relevanz_filter=["Hoch", "Mittel"])
     print(f"{len(eintraege)} Eintraege (Hoch+Mittel) der letzten 7 Tage gefunden.")
 
     if not eintraege:

@@ -1,0 +1,33 @@
+name: Taeglicher Podcast
+
+on:
+  schedule:
+    # 04:20 UTC - kurz nach dem taeglichen Sammellauf (04:00 UTC), damit
+    # der Podcast garantiert auf den frischesten Tageseintraegen basiert.
+    - cron: "20 4 * * *"
+  workflow_dispatch: # erlaubt manuelles Ausloesen zum Testen
+
+jobs:
+  generate-podcast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhaengigkeiten installieren
+        run: pip install -r requirements.txt
+
+      - name: Podcast generieren und verschicken
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_TTS_CREDENTIALS: ${{ secrets.GOOGLE_TTS_CREDENTIALS }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python src/daily_podcast.py

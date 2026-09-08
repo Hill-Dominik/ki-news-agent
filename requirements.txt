@@ -4,3 +4,4 @@ anthropic
 python-dotenv
 PyYAML
 requests
+google-cloud-texttospeech

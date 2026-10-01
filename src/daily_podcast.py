@@ -88,17 +88,23 @@ def chunke_text(text: str, max_chars: int = 4500) -> list[str]:
     return chunks
 
 
-def ersetze_abkuerzungen(text: str) -> str:
+def escape_xml(text: str) -> str:
+    """Escaped XML-Sonderzeichen, damit der Text in SSML eingebettet werden kann."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def baue_ssml(text: str) -> str:
     """
-    Ersetzt alleinstehende Abkuerzungen vor der TTS-Umwandlung, damit sie
-    buchstabiert statt als zusammenhaengendes Wort ausgesprochen werden
-    ("KI" -> "K.I.", "IT" -> "I.T."). \\b sorgt dafuer, dass nur die
-    alleinstehende Abkuerzung ersetzt wird, nicht Buchstabenfolgen
-    innerhalb anderer Woerter (z.B. "Sicherheit" bleibt unveraendert).
+    Wandelt einen Text-Chunk in gueltiges SSML um. "KI" und "IT" werden
+    ueber <say-as interpret-as="characters"> buchstabiert ausgesprochen -
+    der von Google vorgesehene Mechanismus dafuer. Klingt natuerlicher als
+    Punkte im Text ("K.I."), die zu unnatuerlich langen Pausen und
+    teils falscher Aussprache fuehren koennen.
     """
-    text = re.sub(r"\bKI\b", "K.I.", text)
-    text = re.sub(r"\bIT\b", "I.T.", text)
-    return text
+    text = escape_xml(text)
+    text = re.sub(r"\bKI\b", '<say-as interpret-as="characters">KI</say-as>', text)
+    text = re.sub(r"\bIT\b", '<say-as interpret-as="characters">IT</say-as>', text)
+    return f"<speak>{text}</speak>"
 
 
 def erzeuge_audio(text: str) -> bytes:
@@ -110,8 +116,8 @@ def erzeuge_audio(text: str) -> bytes:
     audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
 
     audio_teile = []
-    for chunk in chunke_text(text):
-        synthesis_input = texttospeech.SynthesisInput(text=chunk)
+    for chunk in chunke_text(text, max_chars=4000):  # etwas Puffer fuer SSML-Tags
+        synthesis_input = texttospeech.SynthesisInput(ssml=baue_ssml(chunk))
         response = client.synthesize_speech(
             input=synthesis_input, voice=voice, audio_config=audio_config
         )
@@ -146,7 +152,6 @@ def main():
     rohdaten = formatiere_fuer_prompt(gruppen)
 
     sprechtext = generiere_sprechtext(rohdaten)
-    sprechtext = ersetze_abkuerzungen(sprechtext)
     print(f"Sprechtext generiert ({len(sprechtext)} Zeichen).")
 
     audio_bytes = erzeuge_audio(sprechtext)

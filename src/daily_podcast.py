@@ -9,6 +9,7 @@ Workflows (weekly-summary, weekly-telegram-send) an.
 
 import json
 import os
+import re
 from datetime import date
 
 from dotenv import load_dotenv
@@ -87,6 +88,19 @@ def chunke_text(text: str, max_chars: int = 4500) -> list[str]:
     return chunks
 
 
+def ersetze_abkuerzungen(text: str) -> str:
+    """
+    Ersetzt alleinstehende Abkuerzungen vor der TTS-Umwandlung, damit sie
+    buchstabiert statt als zusammenhaengendes Wort ausgesprochen werden
+    ("KI" -> "K.I.", "IT" -> "I.T."). \\b sorgt dafuer, dass nur die
+    alleinstehende Abkuerzung ersetzt wird, nicht Buchstabenfolgen
+    innerhalb anderer Woerter (z.B. "Sicherheit" bleibt unveraendert).
+    """
+    text = re.sub(r"\bKI\b", "K.I.", text)
+    text = re.sub(r"\bIT\b", "I.T.", text)
+    return text
+
+
 def erzeuge_audio(text: str) -> bytes:
     credentials_info = json.loads(os.environ["GOOGLE_TTS_CREDENTIALS"])
     credentials = service_account.Credentials.from_service_account_info(credentials_info)
@@ -132,6 +146,7 @@ def main():
     rohdaten = formatiere_fuer_prompt(gruppen)
 
     sprechtext = generiere_sprechtext(rohdaten)
+    sprechtext = ersetze_abkuerzungen(sprechtext)
     print(f"Sprechtext generiert ({len(sprechtext)} Zeichen).")
 
     audio_bytes = erzeuge_audio(sprechtext)

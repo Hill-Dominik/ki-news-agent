@@ -9,6 +9,7 @@ Pipeline. Nutzt Sonnet statt Haiku fuer bessere sprachliche Kohaerenz
 im Fliesstext (laeuft nur 1x/Woche, Kostenunterschied vernachlaessigbar).
 """
 
+import json
 import os
 from datetime import date, timedelta
 
@@ -18,7 +19,7 @@ load_dotenv()
 import anthropic
 
 from db import get_client
-from utils import parse_json_antwort, hole_eintraege, gruppiere_nach_kategorie, formatiere_fuer_prompt
+from utils import hole_eintraege, gruppiere_nach_kategorie, formatiere_fuer_prompt
 
 MODELL = "claude-sonnet-5"
 
@@ -45,18 +46,48 @@ Markdown-Formatierung, damit es direkt als Chat-Nachricht lesbar ist.
 Schreibstil: sachlich, kompakt, fuer ein Fachpublikum (IT/KI-affin)."""
 
 
+MAX_VERSUCHE = 2
+
+
+def _extrahiere_json(text: str) -> dict:
+    """
+    Robuster als utils.parse_json_antwort (bewusst nur hier, damit die
+    taeglichen Laeufe unveraendert bleiben):
+    - schneidet Text vor dem ersten '{' und nach dem letzten '}' ab
+    - strict=False erlaubt echte Zeilenumbrueche innerhalb der JSON-Strings
+      (der Markdown-Rueckblick enthaelt viele davon)
+    """
+    start, ende = text.find("{"), text.rfind("}")
+    if start == -1 or ende <= start:
+        raise ValueError("Kein JSON-Objekt in der Antwort gefunden.")
+    daten = json.loads(text[start:ende + 1], strict=False)
+    if not daten.get("text") or not daten.get("teaser"):
+        raise ValueError("JSON ohne Felder 'text' und/oder 'teaser'.")
+    return daten
+
+
 def generiere_rueckblick(rohdaten: str) -> dict:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    response = client.messages.create(
-        model=MODELL,
-        max_tokens=8192,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": rohdaten}],
-    )
-    # Nur Text-Bloecke rausfiltern - Sonnet kann zusaetzlich ThinkingBlocks
-    # zurueckgeben, die keinen .text haben.
-    text_bloecke = [b.text for b in response.content if b.type == "text"]
-    return parse_json_antwort("\n".join(text_bloecke))
+    letzter_fehler = None
+    for versuch in range(1, MAX_VERSUCHE + 1):
+        response = client.messages.create(
+            model=MODELL,
+            max_tokens=8192,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": rohdaten}],
+        )
+        print(f"Versuch {versuch}: stop_reason={response.stop_reason}, "
+              f"output_tokens={response.usage.output_tokens}")
+        # Nur Text-Bloecke rausfiltern - Sonnet kann zusaetzlich ThinkingBlocks
+        # zurueckgeben, die keinen .text haben.
+        text = "\n".join(b.text for b in response.content if b.type == "text")
+        try:
+            return _extrahiere_json(text)
+        except (ValueError, json.JSONDecodeError) as fehler:
+            letzter_fehler = fehler
+            print(f"Antwort nicht auswertbar ({fehler}). Anfang der Antwort:")
+            print(text[:500] or "<leer>")
+    raise RuntimeError(f"Kein gueltiger Rueckblick nach {MAX_VERSUCHE} Versuchen: {letzter_fehler}")
 
 
 def main():

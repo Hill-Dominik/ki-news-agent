@@ -11,6 +11,10 @@ on:
         description: "Testlauf: nicht in den Kanal senden, MP3 als Download"
         type: boolean
         default: false
+      test_chat_id:
+        description: "Optional: private Telegram-Chat-ID fuer den Testversand"
+        type: string
+        required: false
 
 jobs:
   generate-podcast:

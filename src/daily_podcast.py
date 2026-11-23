@@ -126,9 +126,9 @@ def erzeuge_audio(text: str) -> bytes:
     return b"".join(audio_teile)  # einfaches Aneinanderhaengen der MP3-Teile
 
 
-def sende_telegram_audio(audio_bytes: bytes, titel: str) -> None:
+def sende_telegram_audio(audio_bytes: bytes, titel: str, chat_id: str | None = None) -> None:
     token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+    chat_id = chat_id or os.environ["TELEGRAM_CHAT_ID"]
     response = requests.post(
         f"https://api.telegram.org/bot{token}/sendAudio",
         data={"chat_id": chat_id, "title": titel},
@@ -136,6 +136,21 @@ def sende_telegram_audio(audio_bytes: bytes, titel: str) -> None:
         timeout=60,
     )
     response.raise_for_status()
+
+
+def lies_test_chat_id() -> str | None:
+    """
+    Private Chat-ID fuer Testversand. Wird beim manuellen Start als
+    workflow_dispatch-Input uebergeben und hier direkt aus der Event-Datei
+    gelesen - so taucht sie weder im Code noch im oeffentlichen Log auf.
+    """
+    pfad = os.environ.get("GITHUB_EVENT_PATH")
+    if not pfad or not os.path.exists(pfad):
+        return None
+    with open(pfad, encoding="utf-8") as f:
+        event = json.load(f)
+    wert = str((event.get("inputs") or {}).get("test_chat_id") or "").strip()
+    return wert or None
 
 
 def main():
@@ -164,7 +179,13 @@ def main():
             f.write(audio_bytes)
         with open("podcast_test.txt", "w", encoding="utf-8") as f:
             f.write(sprechtext)
-        print("TEST_MODUS: Podcast NICHT verschickt, als Datei gespeichert.")
+        test_chat = lies_test_chat_id()
+        if test_chat:
+            heute = date.today().strftime("%d.%m.%Y")
+            sende_telegram_audio(audio_bytes, titel=f"TEST KI-News-Podcast {heute}", chat_id=test_chat)
+            print("TEST_MODUS: Podcast privat an Test-Chat geschickt (nicht an den Kanal).")
+        else:
+            print("TEST_MODUS: Podcast NICHT verschickt, als Datei gespeichert.")
         return
 
     heute = date.today().strftime("%d.%m.%Y")

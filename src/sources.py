@@ -84,7 +84,7 @@ def hole_web_suche_kandidaten(suchanfragen: list[str]) -> list[dict]:
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=1024,
-                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 2}],
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 1}],  # Kosten: 1 Suche pro Anfrage
                 system=SUCH_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": query}],
             )

@@ -6,6 +6,11 @@ on:
     # der Podcast garantiert auf den frischesten Tageseintraegen basiert.
     - cron: "20 4 * * *"
   workflow_dispatch: # erlaubt manuelles Ausloesen zum Testen
+    inputs:
+      test_modus:
+        description: "Testlauf: nicht in den Kanal senden, MP3 als Download"
+        type: boolean
+        default: false
 
 jobs:
   generate-podcast:
@@ -30,4 +35,14 @@ jobs:
           GOOGLE_TTS_CREDENTIALS: ${{ secrets.GOOGLE_TTS_CREDENTIALS }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEST_MODUS: ${{ inputs.test_modus }}
         run: python src/daily_podcast.py
+
+      - name: Test-Podcast als Download bereitstellen
+        if: ${{ inputs.test_modus }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: podcast-test
+          path: |
+            podcast_test.mp3
+            podcast_test.txt

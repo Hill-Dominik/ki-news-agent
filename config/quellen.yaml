@@ -22,7 +22,7 @@ rss_quellen:
 # (Ursprünglich war hier die Google Custom Search API vorgesehen – die nimmt
 # seit 2025 aber keine neuen Kunden mehr an, siehe Kommentar in sources.py)
 suchanfragen:
-  - "Anthropic Claude announcement"
-  - "Meta AI model release"
-  - "new AI model release"
-  - "KI Regulierung Gesetz"
+  # Seit 23.11.2026 aus Kostengruenden von 4 auf 2 Anfragen zusammengelegt,
+  # je max. 1 Suche (siehe max_uses in sources.py).
+  - "Anthropic Claude OR Meta AI announcement"
+  - "new AI model release OR KI Regulierung Gesetz"

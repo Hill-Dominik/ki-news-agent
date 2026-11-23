@@ -23,7 +23,7 @@ from google.oauth2 import service_account
 from db import get_client
 from utils import hole_eintraege, gruppiere_nach_kategorie, formatiere_fuer_prompt
 
-MODELL = "claude-sonnet-5"
+MODELL = "claude-haiku-4-5-20251001"  # seit 23.11.2026 statt Sonnet (Kostensenkung)
 STIMME = "de-DE-Neural2-B"  # maennliche Stimme; de-DE-Neural2-A waere weiblich
 
 SYSTEM_PROMPT = """Du schreibst das Skript fuer einen kurzen taeglichen \
@@ -156,6 +156,16 @@ def main():
 
     audio_bytes = erzeuge_audio(sprechtext)
     print(f"Audio erzeugt ({len(audio_bytes) / 1024:.0f} KB).")
+
+    if os.environ.get("TEST_MODUS", "").lower() == "true":
+        # Testlauf: NICHT in den oeffentlichen Kanal senden, sondern MP3 +
+        # Sprechtext als Datei ablegen (Workflow laedt sie als Artifact hoch).
+        with open("podcast_test.mp3", "wb") as f:
+            f.write(audio_bytes)
+        with open("podcast_test.txt", "w", encoding="utf-8") as f:
+            f.write(sprechtext)
+        print("TEST_MODUS: Podcast NICHT verschickt, als Datei gespeichert.")
+        return
 
     heute = date.today().strftime("%d.%m.%Y")
     sende_telegram_audio(audio_bytes, titel=f"KI-News-Podcast {heute}")

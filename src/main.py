@@ -3,7 +3,7 @@ main.py - Orchestriert einen kompletten Lauf des KI-News-Agenten:
 
 1) Kandidaten sammeln (RSS-Prioritaetsquellen + ergaenzende Google-Suche)
 2) Dedup Stufe 1: URL-Exact-Match gegen die Datenbank
-3) Pro verbliebenem Kandidaten: Claude-Bewertung (inkl. Dedup Stufe 2)
+3) Claude-Bewertung in Paketen von bis zu 10 Artikeln (inkl. Dedup Stufe 2)
 4) Nicht-Duplikate mit Zusammenfassung/Kategorie/Relevanz in die DB schreiben
 
 Wird taeglich per GitHub Actions ausgefuehrt (.github/workflows/daily_run.yml),
@@ -28,7 +28,7 @@ from db import (
     speichere_eintrag,
 )
 from sources import lade_config, hole_rss_kandidaten, hole_web_suche_kandidaten
-from bewertung import bewerte_artikel
+from bewertung import bewerte_artikel_gebuendelt
 
 
 def main():
@@ -65,12 +65,13 @@ def main():
     letzte_titel = get_letzte_titel(client, tage=3)
     gespeichert = 0
 
-    for i, kandidat in enumerate(neue_kandidaten, start=1):
-        print(f"Bewerte {i}/{len(neue_kandidaten)}: {kandidat['titel'][:70]}")
-        try:
-            bewertung = bewerte_artikel(kandidat, letzte_titel)
-        except Exception as e:
-            print(f"  Fehler bei Bewertung: {e}")
+    # Gebuendelte Bewertung: bis zu 10 Artikel pro API-Aufruf (Kostensenkung)
+    bewertungen = bewerte_artikel_gebuendelt(neue_kandidaten, letzte_titel)
+
+    for i, (kandidat, bewertung) in enumerate(zip(neue_kandidaten, bewertungen), start=1):
+        print(f"Artikel {i}/{len(neue_kandidaten)}: {kandidat['titel'][:70]}")
+        if bewertung is None:
+            print("  -> keine Bewertung, uebersprungen")
             continue
 
         if bewertung.get("ist_duplikat"):
@@ -101,7 +102,7 @@ def main():
             print(f"  Fehler beim Speichern: {e}")
             continue
 
-        letzte_titel.append(kandidat["titel"])  # fuer Dedup innerhalb desselben Laufs
+
 
     print(f"{gespeichert} neue Eintraege gespeichert.")
 

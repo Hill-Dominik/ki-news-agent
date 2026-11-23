@@ -96,6 +96,7 @@ def escape_xml(text: str) -> str:
 def baue_ssml(text: str) -> str:
     """
     Wandelt einen Text-Chunk in gueltiges SSML um. "KI" und "IT" werden
+    (seit 23.11.2026 auch "AI")
     ueber <say-as interpret-as="characters"> buchstabiert ausgesprochen -
     der von Google vorgesehene Mechanismus dafuer. Klingt natuerlicher als
     Punkte im Text ("K.I."), die zu unnatuerlich langen Pausen und
@@ -104,6 +105,7 @@ def baue_ssml(text: str) -> str:
     text = escape_xml(text)
     text = re.sub(r"\bKI\b", '<say-as interpret-as="characters">KI</say-as>', text)
     text = re.sub(r"\bIT\b", '<say-as interpret-as="characters">IT</say-as>', text)
+    text = re.sub(r"\bAI\b", '<say-as interpret-as="characters">AI</say-as>', text)
     return f"<speak>{text}</speak>"
 
 
